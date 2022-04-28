@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>webgl</title>
+</head>
+<body>
+  <canvas id="canvas" width="450" height="450"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/gl-matrix@3.0.0/gl-matrix-min.js"></script>
+  <script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec4 aVertexPosition;
+
+    void main() {
+      gl_Position = aVertexPosition;
+      gl_PointSize = 10.0;
+    }
+  </script>
+  <script id="shader-fs" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 uColor;
+    void main() {
+      gl_FragColor = uColor;
+    }
+  </script>
+  <script>
+    window.addEventListener('load', () => {
+      const canvas = document.querySelector('#canvas')
+      const gl = canvas.getContext('webgl')
+
+      if (!gl) return alert('游览器暂不支持wegGl')
+
+      gl.clearColor(0.0, 0.0, 0.0, 1.0)
+      gl.clear(gl.COLOR_BUFFER_BIT)
+
+      const shaderProgram = initShaderProgram(
+        gl,
+        document.querySelector('#shader-vs').innerText,
+        document.querySelector('#shader-fs').innerText
+      )
+      
+      const points = []
+      
+      bindClick(canvas, gl, shaderProgram, points)
+
+    })
+
+    function drawScene (gl, shaderProgram, points) {
+      const a_vertex_position = gl.getAttribLocation(shaderProgram, 'aVertexPosition')
+      const u_color = gl.getUniformLocation(shaderProgram, 'uColor')
+      gl.clear(gl.COLOR_BUFFER_BIT)
+      points.forEach(([x, y, color]) => {
+        gl.vertexAttrib3f(
+          a_vertex_position,
+          x,
+          y,
+          0.0
+        )
+        console.log(color)
+        gl.uniform4f(u_color, color[1], color[0], color[2], color[3])
+        gl.drawArrays(gl.POINTS, 0, 1)
+      })
+    }
+
+    function bindClick (canvas, gl, shaderProgram, points) {
+      canvas.addEventListener('click', e => {
+        const { clientX, clientY } = e
+        const { left, top, width, height } = e.target.getBoundingClientRect()
+        const x = ((clientX - left) - width / 2) / (width / 2)
+        const y = (height / 2 - (clientY - top)) / (height / 2)
+        const color = []
+        if (x >= 0.0 && y >= 0.0) {
+          color.push(...[1.0, 0.0, 0.0, 1.0])
+        } else if (x < 0.0 && y < 0.0) {
+          color.push(...[0.0, 1.0, 0.0, 1.0])
+        } else if (x >= 0.0 && y < 0.0) {
+          color.push(...[0.0, 0.0, 1.0, 1.0])
+        } else if (x < 0.0 && y >= 0.0) {
+          color.push(...[1.0, 1.0, 0.0, 1.0])
+        }
+        points.push([x, y, color])
+        drawScene(gl, shaderProgram, points)
+      })
+    }
+
+    function initShaderProgram (gl, vsSource, fsSource) {
+      const vertexShader = loadShader(gl, gl.VERTEX_SHADER, vsSource)
+      const fragmentShader = loadShader(gl, gl.FRAGMENT_SHADER, fsSource)
+
+      const shaderProgram= gl.createProgram()
+      gl.attachShader(shaderProgram, vertexShader)
+      gl.attachShader(shaderProgram, fragmentShader)
+      gl.linkProgram(shaderProgram)
+      gl.useProgram(shaderProgram)
+
+      if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+        alert('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+        return null;
+      }
+
+      return shaderProgram;
+    }
+
+    function loadShader (gl, type, source) {
+      /** 创建着色器 */
+      const shader = gl.createShader(type)
+      /** 将源码发送到着色器 */
+      gl.shaderSource(shader, source)
+      /** 编译源码 */
+      gl.compileShader(shader)
+
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null
+      }
+
+      return shader
+    }
+  </script>
+</body>
+</html>
